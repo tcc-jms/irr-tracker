@@ -8,6 +8,7 @@
 
   var State = window.AppState || {};
   var Views = window.Views || {};
+  var Access = window.AppAccess || {};
 
   var routes = {};
   var currentParams = {};
@@ -34,6 +35,11 @@
     if (!viewName || !Views[viewName]) {
       page = 'overview';
       viewName = 'overview';
+      window.location.hash = '#overview';
+    }
+    if (Access.canAccess && !Access.canAccess(page)) {
+      page = 'overview';
+      viewName = routes['/overview'];
       window.location.hash = '#overview';
     }
     currentParams = { id: parts[1] ? decodeURIComponent(parts[1]) : null };

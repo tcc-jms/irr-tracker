@@ -2,7 +2,8 @@
  * src/main.js
  * 應用程式主入口
  */
-
+import { supabase } from './core/supabase.js'
+window.supabase = supabase
 (function(root) {
   'use strict';
 
@@ -14,6 +15,7 @@
   var Engine = window.IRREngine || {};
   var Compute = window.AppCompute || {};
   var Notifications = window.AppNotifications || {};
+  var Access = window.AppAccess || {};
   var liveEdit = null;
   var draft = null;
 
@@ -123,8 +125,18 @@
     nav.innerHTML = Object.keys(pages).map(function(key) {
       var page = pages[key];
       if (page === 'project') return '';
+      if (Access.isProtectedPage && Access.isProtectedPage(page) && !Access.isAuthorized()) return '';
       return '<a href="#' + page + '" data-page="' + page + '">' + getPageLabel(page) + '</a>';
-    }).join('');
+    }).join('') + '<button class="admin-access" id="admin-access" type="button">' +
+      (Access.isAuthorized() ? '管理者登出' : '管理者登入') + '</button>';
+    Access.setChangeHandler(function() {
+      bindNavigation();
+      if (!Access.isAuthorized() && Access.isProtectedPage(Router.getCurrentPage())) Router.navigate('/overview');
+    });
+    document.getElementById('admin-access').addEventListener('click', function() {
+      if (Access.isAuthorized()) Access.logout();
+      else Access.open();
+    });
   }
 
   function getPageLabel(page) {

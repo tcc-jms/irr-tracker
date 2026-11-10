@@ -25,6 +25,8 @@ header.top nav{display:flex;gap:2px;flex:1;flex-wrap:wrap}
 header.top nav a{color:#C8D0D8;text-decoration:none;padding:16px 12px;border-bottom:3px solid transparent}
 header.top nav a.on{color:#fff;border-bottom-color:#5FC4B8}
 header.top nav a .badge{background:#5FC4B8;color:var(--ink);border-radius:9px;padding:0 6px;font-size:12px;margin-left:4px;font-weight:600}
+header.top nav .admin-access{align-self:center;background:transparent;border:1px solid #71808D;border-radius:4px;color:#fff;padding:5px 10px;cursor:pointer;white-space:nowrap}
+header.top nav .admin-access:hover{background:#2C3846}
 .clock{display:flex;align-items:center;gap:6px;font-size:13px;color:#C8D0D8}
 .clock input{background:#2C3846;border:1px solid #46525F;color:#fff;border-radius:4px;padding:2px 6px;width:140px}
 .clock input::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.85;cursor:pointer}
@@ -176,6 +178,7 @@ input[type=text],input[type=email],input[type=date],input[type=number],select,te
 <script src="src/core/state.js"></script>
 <script src="src/core/storage.js"></script>
 <script src="src/core/audit.js"></script>
+<script src="src/core/access.js"></script>
 <script src="src/core/scheduler.js"></script>
 <script src="src/core/notifications.js"></script>
 <script src="src/engine/excel-parser.js"></script>
@@ -196,6 +199,6 @@ input[type=text],input[type=email],input[type=date],input[type=number],select,te
 <script src="src/views/index.js"></script>
 <script src="src/core/router.js"></script>
 <script src="demo/seed.js"></script>
-<script src="src/main.js"></script>
+<script type="module" src="src/main.js"></script>
 </body>
 </html>
