@@ -25,7 +25,7 @@
     if (!status || ['due', 'late', 'ok'].indexOf(status.status) === -1) {
       // 若想確認為何失敗，可以暫時把這行取消註解來看真實數值：
       runtime.toast('目前日期:' + realToday + '，預期狀態:' + (status ? status.status : '無'));
-      runtime.toast('此年度尚未開放回報');
+      //runtime.toast('此年度尚未開放回報');
       return false;
     }
     var reportRows = Compute.getReportRows ? Compute.getReportRows(project.model, project.baseline) : project.reportRows || [];
