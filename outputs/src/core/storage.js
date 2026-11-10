@@ -230,10 +230,21 @@
 
     var remote = projectMap(await normalizeProjects(result.data));
     changes.changedIds.forEach(function(id) {
+
+      // 如果是 deletion，不做 conflict check
+      if (changes.deletions.includes(id)) {
+        return;
+      }
+
       var base = changes.previous[id];
       var remoteProject = remote[id];
-      if ((!base && remoteProject) || (base && (!remoteProject || !sameValue(base, remoteProject)))) {
-        throw new Error('專案「' + id + '」已被其他同事修改。為避免覆蓋資料，這次存檔已取消；請重新整理後再編輯。');
+
+      if ((!base && remoteProject) ||
+          (base && (!remoteProject || !sameValue(base, remoteProject)))) {
+
+        throw new Error(
+          '專案「' + id + '」已被其他同事修改。為避免覆蓋資料，這次存檔已取消；請重新整理後再編輯。'
+        );
       }
     });
   }
