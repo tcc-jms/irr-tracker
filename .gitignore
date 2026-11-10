@@ -1,0 +1,21 @@
+# Claude
+.claude/
+.audit-key
+audit.jsonl
+
+# Node
+node_modules/
+
+# VSCode
+.vscode/
+
+# Logs
+*.log
+
+# Temp
+tmp/
+temp/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,9 +1,0 @@
-{
-  "id": "3",
-  "subject": "第二階段拆分：Step 3 拆分 core/constants.js 與 core/state.js",
-  "description": "從原始 HTML 中提取系統常數和狀態管理邏輯：\n- src/core/constants.js - 版本、storage key、schema version 等\n- src/core/state.js - 全局狀態管理（get, set, subscribe）\n\n需要實現 AppState 的觀察者模式，支持 subscribe 和 state 變更通知。\n\n完成後停止，等待用戶說「繼續」。",
-  "activeForm": "提取常數和狀態管理到 core 模組",
-  "status": "completed",
-  "blocks": [],
-  "blockedBy": []
-}

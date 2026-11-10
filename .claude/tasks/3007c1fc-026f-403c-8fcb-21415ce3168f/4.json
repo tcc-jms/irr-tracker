@@ -1,9 +1,0 @@
-{
-  "id": "4",
-  "subject": "第二階段拆分：Step 4 拆分 core/storage.js",
-  "description": "從原始 HTML 中提取 localStorage 操作邏輯：\n- load() - 載入資料\n- save() - 保存資料\n- migrate() - 資料遷移\n- export() - 匯出備份\n- import() - 匯入備份\n- storageUsageKb() - 計算儲存空間\n\n需要依賴 AppConstants (STORAGE_KEY) 和 AppState (db)。\n錯誤處理要完善，需要支援備份/復原功能。\n\n完成後停止，等待用戶說「繼續」。",
-  "activeForm": "提取 localStorage 操作到 storage 模組",
-  "status": "completed",
-  "blocks": [],
-  "blockedBy": []
-}

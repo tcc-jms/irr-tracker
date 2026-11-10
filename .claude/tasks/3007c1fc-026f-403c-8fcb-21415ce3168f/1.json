@@ -1,9 +1,0 @@
-{
-  "id": "1",
-  "subject": "第二階段拆分：Step 1 建立檔案結構與修改 index.html",
-  "description": "建立資料夾與空白檔案，修改 index.html 的 script src 載入順序。根據指示建立：\n- src/utils/\n- src/core/\n- src/engine/\n- src/components/\n- src/views/\n- demo/\n\n並準備所有空白的 .js 檔案，修改 index.html 移除 inline JS，改用 script src 載入。\n\n完成後停止，等待用戶說「繼續」。",
-  "activeForm": "建立檔案結構",
-  "status": "completed",
-  "blocks": [],
-  "blockedBy": []
-}
