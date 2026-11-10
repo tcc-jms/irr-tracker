@@ -63,16 +63,64 @@
     }
   }
 
-  function normalizeProjects(rows) {
-    return (rows || []).map(function(row) {
+  function bytesToBase64(bytes) {
+    var binary = '';
+    var chunkSize = 0x8000;
+    for (var offset = 0; offset < bytes.length; offset += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(offset, offset + chunkSize));
+    }
+    return btoa(binary);
+  }
+
+  function base64ToBytes(value) {
+    var binary = atob(value);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  async function compressProject(project) {
+    var projectData = clone(project);
+    if (!projectData.wb || typeof CompressionStream === 'undefined') return projectData;
+
+    var serializedWorkbook = JSON.stringify(projectData.wb);
+    var stream = new Blob([serializedWorkbook]).stream().pipeThrough(new CompressionStream('gzip'));
+    var compressed = new Uint8Array(await new Response(stream).arrayBuffer());
+    var encoded = bytesToBase64(compressed);
+    if (encoded.length < serializedWorkbook.length) {
+      delete projectData.wb;
+      projectData.wbCompressed = { encoding: 'gzip-base64', data: encoded };
+    }
+    return projectData;
+  }
+
+  async function decompressProject(project) {
+    if (!project.wbCompressed) return project;
+    var compressed = project.wbCompressed;
+    if (compressed.encoding !== 'gzip-base64' || typeof compressed.data !== 'string') {
+      throw new Error('Supabase 專案的工作簿壓縮格式不支援。');
+    }
+    if (typeof DecompressionStream === 'undefined') {
+      throw new Error('此瀏覽器不支援解壓縮雲端工作簿，請更新瀏覽器。');
+    }
+    var stream = new Blob([base64ToBytes(compressed.data)])
+      .stream()
+      .pipeThrough(new DecompressionStream('gzip'));
+    project.wb = JSON.parse(await new Response(stream).text());
+    delete project.wbCompressed;
+    return project;
+  }
+
+  async function normalizeProjects(rows) {
+    return Promise.all((rows || []).map(async function(row) {
       if (!row || typeof row.id !== 'string' || !row.project_data ||
           typeof row.project_data !== 'object' || Array.isArray(row.project_data)) {
         throw new Error('Supabase projects 表含有格式不正確的資料，請檢查 project_data 欄位。');
       }
-      var project = row.project_data;
+      var project = await decompressProject(row.project_data);
       project.id = row.id;
       return project;
-    });
+    }));
   }
 
   async function loadProjectsFromSupabase() {
@@ -95,8 +143,18 @@
     return result;
   }
 
+  function stableValue(value) {
+    if (Array.isArray(value)) return value.map(stableValue);
+    if (!value || typeof value !== 'object') return value;
+    var normalized = {};
+    Object.keys(value).sort().forEach(function(key) {
+      normalized[key] = stableValue(value[key]);
+    });
+    return normalized;
+  }
+
   function sameValue(left, right) {
-    return JSON.stringify(left) === JSON.stringify(right);
+    return JSON.stringify(stableValue(left)) === JSON.stringify(stableValue(right));
   }
 
   function sameProjects(left, right) {
@@ -170,7 +228,7 @@
       throw new Error('無法確認雲端專案是否已被其他同事修改：' + result.error.message);
     }
 
-    var remote = projectMap(normalizeProjects(result.data));
+    var remote = projectMap(await normalizeProjects(result.data));
     changes.changedIds.forEach(function(id) {
       var base = changes.previous[id];
       var remoteProject = remote[id];
@@ -187,7 +245,17 @@
     await checkForConflicts(changes);
 
     if (changes.upserts.length) {
-      var upsertResult = await getClient().from('projects').upsert(changes.upserts, { onConflict: 'id' });
+      var cloudUpserts = await Promise.all(changes.upserts.map(async function(row) {
+        return {
+          id: row.id,
+          name: row.name,
+          plant: row.plant,
+          owner: row.owner,
+          project_data: await compressProject(row.project_data),
+          updated_at: row.updated_at
+        };
+      }));
+      var upsertResult = await getClient().from('projects').upsert(cloudUpserts, { onConflict: 'id' });
       if (upsertResult.error) {
         console.error('Supabase project save failed:', upsertResult.error);
         throw new Error('專案雲端存檔失敗：' + upsertResult.error.message);
