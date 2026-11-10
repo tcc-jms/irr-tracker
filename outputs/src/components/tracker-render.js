@@ -85,7 +85,7 @@
             var value = liveEdit && liveEdit.year === item.year ? liveEdit.values[cell.addr] :
               project.reports && project.reports[item.year] && project.reports[item.year].values && project.reports[item.year].values[cell.addr];
             // 加上 year-divider 以及 col-act
-            body += '<td class="col-act year-divider"><input class="t-inp" type="text" data-addr="' + escape(cell.addr) + '" value="' + escape(value) + '"></td>';
+            body += '<td class="col-act year-divider"><input class="t-inp" type="text" data-year="' + item.year + '" data-addr="' + escape(cell.addr) + '" value="' + escape(value) + '"></td>';
           } else {
             var actVal = project.reports && project.reports[item.year] && project.reports[item.year].values ? project.reports[item.year].values[cell.addr] : null;
             // 加上 year-divider 以及 col-act
