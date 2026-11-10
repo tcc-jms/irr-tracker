@@ -46,10 +46,10 @@
       var actions = project.reports && project.reports[item.year]
         ? '<button class="yr-menu-btn danger" type="button" data-delete-report="' + item.year + '" title="刪除此年回報">刪除</button>'
         : '';
-      headers += '<th colspan="' + (open ? 2 : 1) + '"><div class="yr-head-wrap"><div class="yr-name">' + (item.year === 0 ? '第 0 年' : '第 ' + item.year + ' 年') + ' ' + actions + '</div>' +
-        '<div class="yr-period">' + escape(period) + '</div><div class="yr-status">' + escape(state ? ({ ok: '已回報', due: '待回報', late: '逾期', idle: '未到期' }[state.status]) : '') + '</div>' +
-        '<div class="yr-sub"><span class="yr-sub-cell">提報</span>' + (open ? '<span class="yr-sub-cell act-label">實際</span>' : '') + '</div></div></th>';
-    });
+        headers += '<th colspan="' + (open ? 2 : 1) + '" class="year-divider"><div class="yr-head-wrap"><div class="yr-name">' + (item.year === 0 ? '第 0 年' : '第 ' + item.year + ' 年') + ' ' + actions + '</div>' +
+          '<div class="yr-period">' + escape(period) + '</div><div class="yr-status">' + escape(state ? ({ ok: '已回報', due: '待回報', late: '逾期', idle: '未到期' }[state.status]) : '') + '</div>' +
+          '<div class="yr-sub"><span class="yr-sub-cell">提報</span>' + (open ? '<span class="yr-sub-cell act-label">實際</span>' : '') + '</div></div></th>';      
+      });
     headers += '</tr>';
 
     var body = '';
@@ -60,7 +60,10 @@
         var state = schedule[item.year];
         var open = item.year > 0 && state && (state.status === 'due' || state.status === 'late' || state.status === 'ok');
         var value = mainRow && baselineRows[mainRow] ? baselineRows[mainRow][item.year] : null;
-        body += '<td class="num">' + formatValue(value) + '</td>' + (open ? '<td class="num">' + formatValue(actualRows[mainRow] && actualRows[mainRow][item.year]) + '</td>' : '');
+        var planCls = 'num col-plan' + (open ? '' : ' year-divider');
+        var actCls = 'num col-act year-divider';
+        body += '<td class="' + planCls + '">' + formatValue(value) + '</td>' + 
+                (open ? '<td class="' + actCls + '">' + formatValue(actualRows[mainRow] && actualRows[mainRow][item.year]) + '</td>' : '');
       });
       body += '</tr>';
 
@@ -75,14 +78,18 @@
           var open = item.year > 0 && state && (state.status === 'due' || state.status === 'late' || state.status === 'ok');
           var cell = row.yearCells.filter(function(yearCell) { return yearCell.year === item.year; })[0];
           var plan = cell && baselineRows[row.row] ? baselineRows[row.row][item.year] : null;
-          body += '<td class="num">' + (cell ? formatValue(plan) : '') + '</td>';
+          var planCls = 'num col-plan' + (open ? '' : ' year-divider');
+          body += '<td class="' + planCls + '">' + (cell ? formatValue(plan) : '') + '</td>';
           if (!open) return;
           if (canReport && cell) {
             var value = liveEdit && liveEdit.year === item.year ? liveEdit.values[cell.addr] :
               project.reports && project.reports[item.year] && project.reports[item.year].values && project.reports[item.year].values[cell.addr];
-            body += '<td><input class="t-inp' + (value !== undefined && value !== '' ? ' filled' : '') + '" type="number" step="any" data-year="' + item.year + '" data-addr="' + escape(cell.addr) + '" value="' + (value == null ? '' : escape(value)) + '" placeholder="' + escape(typeof plan === 'number' ? plan : '') + '"></td>';
+            // 加上 year-divider 以及 col-act
+            body += '<td class="col-act year-divider"><input class="t-inp" type="text" data-addr="' + escape(cell.addr) + '" value="' + escape(value) + '"></td>';
           } else {
-            body += '<td class="num">' + (cell ? formatValue(actualRows[row.row] && actualRows[row.row][item.year]) : '') + '</td>';
+            var actVal = project.reports && project.reports[item.year] && project.reports[item.year].values ? project.reports[item.year].values[cell.addr] : null;
+            // 加上 year-divider 以及 col-act
+            body += '<td class="num col-act year-divider">' + (cell ? formatValue(actVal) : '') + '</td>';
           }
         });
         body += '</tr>';
