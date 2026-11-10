@@ -41,6 +41,13 @@
     var current = Notifications.currentPeriod(project, today);
     var contacts = project.contacts || { plant: '', hq: '' };
 
+    // 廠區下拉選單，與「上傳提報 Excel」一致；若既有值不在清單中則保留為選項
+    var plantList = ['和平廠', '蘇澳廠'];
+    if (project.plant && plantList.indexOf(project.plant) === -1) plantList.push(project.plant);
+    var plantOptions = plantList.map(function(name) {
+      return '<option value="' + escape(name) + '"' + (name === project.plant ? ' selected' : '') + '>' + escape(name) + '</option>';
+    }).join('');
+
     appEl.innerHTML = '<p class="small"><a href="#overview">← 追蹤總覽</a></p>' +
       '<h2>' + escape(project.name) + '</h2>' +
       '<p class="lead">' + [project.plant, project.code, project.owner ? '負責人 ' + project.owner : ''].filter(Boolean).map(escape).join('　') +
@@ -57,13 +64,8 @@
       '<div id="irr-bar-container">' + (TrackerRender.buildIrrBar ? TrackerRender.buildIrrBar({ project: project, schedule: schedule, snapshot: snapshot, liveEdit: liveEdit, canSave: canSave }) : '') + '</div>' +
       '<div class="panel"><h3>專案設定</h3><div class="grid2">' +
       '<label class="f"><span>專案名稱</span><input type="text" id="s-name" value="' + escape(project.name) + '"></label>' +
-      '<label class="f"><span>預算代號</span><input type="text" id="s-code" value="' + escape(project.code || '') + '"></label>' +
-      '<label class="f"><span>廠區</span><input type="text" id="s-plant" value="' + escape(project.plant || '') + '"></label>' +
-      '<label class="f"><span>負責人</span><input type="text" id="s-owner" value="' + escape(project.owner || '') + '"></label>' +
+      '<label class="f"><span>廠區</span><select id="s-plant">' + plantOptions + '</select></label>' +
       '<label class="f"><span>啟用日</span><input type="date" id="s-start" value="' + escape(project.startDate || '') + '"></label>' +
-      '<label class="f"><span>寬限天數</span><input type="number" id="s-grace" min="1" max="365" value="' + escape(project.graceDays || 30) + '"></label>' +
-      '<label class="f"><span>廠端 Email</span><input type="email" id="s-pe" value="' + escape(contacts.plant || '') + '"></label>' +
-      '<label class="f"><span>總部 Email</span><input type="email" id="s-he" value="' + escape(contacts.hq || '') + '"></label>' +
       '</div><button class="btn sm" id="s-save" type="button">儲存設定</button><button class="btn sm danger" id="s-del" type="button">刪除專案</button></div>';
 
     appEl.querySelectorAll('#mode-seg button').forEach(function(button) {
@@ -92,12 +94,8 @@
       var name = document.getElementById('s-name').value.trim();
       if (!name) return Runtime.toast('專案名稱不可空白');
       project.name = name;
-      project.code = document.getElementById('s-code').value.trim();
-      project.plant = document.getElementById('s-plant').value.trim();
-      project.owner = document.getElementById('s-owner').value.trim();
+      project.plant = document.getElementById('s-plant').value;
       project.startDate = document.getElementById('s-start').value || project.startDate;
-      project.graceDays = Math.max(1, Math.min(365, Number(document.getElementById('s-grace').value) || 30));
-      project.contacts = { plant: document.getElementById('s-pe').value.trim(), hq: document.getElementById('s-he').value.trim() };
       project.updatedAt = db.today;
       Runtime.audit('update_project', { resourceType: 'project', resourceId: project.id, details: { name: name, plant: project.plant, owner: project.owner }, summary: '更新專案設定' });
       Runtime.toast('專案設定已儲存');
