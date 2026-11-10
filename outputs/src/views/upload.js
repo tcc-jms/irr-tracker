@@ -94,15 +94,18 @@
     if (!preview || !draft) return;
     var today = State.state && State.state.db && State.state.db.today || new Date().toISOString().slice(0, 10);
     var startDate = (Number(today.slice(0, 4)) + 1) + '-01-01';
+    
+    // 判斷系統抓取的廠區，設定下拉選單預設值
+    var parsedPlant = escape(draft.meta.plant);
+    var isSuao = parsedPlant.includes('蘇澳');
+    var plantOptions = '<option value="和平廠"' + (!isSuao ? ' selected' : '') + '>和平廠</option>' +
+                       '<option value="蘇澳廠"' + (isSuao ? ' selected' : '') + '>蘇澳廠</option>';
+
+    // 簡化後的表單 UI：只保留 專案名稱、廠區(下拉)、啟用日
     preview.innerHTML = '<div class="panel"><h3>設定專案</h3><div class="grid2">' +
       '<label class="f"><span>專案名稱</span><input type="text" id="d-name" value="' + escape(draft.meta.name) + '"></label>' +
-      '<label class="f"><span>預算代號</span><input type="text" id="d-code" value="' + escape(draft.meta.code) + '"></label>' +
-      '<label class="f"><span>廠區</span><input type="text" id="d-plant" value="' + escape(draft.meta.plant) + '"></label>' +
-      '<label class="f"><span>負責人</span><input type="text" id="d-owner" value="' + escape(draft.meta.owner) + '"></label>' +
-      '<label class="f"><span>啟用日</span><input type="date" id="d-start" value="' + startDate + '"></label>' +
-      '<label class="f"><span>回報寬限天數</span><input type="number" id="d-grace" min="1" max="365" value="30"></label>' +
-      '<label class="f"><span>廠端 Email</span><input type="email" id="d-pe"></label>' +
-      '<label class="f"><span>總部 Email</span><input type="email" id="d-he"></label></div>' +
+      '<label class="f"><span>廠區</span><select id="d-plant">' + plantOptions + '</select></label>' +
+      '<label class="f"><span>啟用日</span><input type="date" id="d-start" value="' + startDate + '"></label></div>' +
       '<div id="create-error"></div><button class="btn" id="create-project" type="button">建立追蹤專案</button>' +
       '<button class="btn ghost" id="cancel-upload" type="button">取消</button></div>';
 
@@ -111,6 +114,7 @@
       document.getElementById('upload-preview').innerHTML = '';
       document.getElementById('upload-message').innerHTML = '';
     });
+    
     document.getElementById('create-project').addEventListener('click', function() {
       var name = document.getElementById('d-name').value.trim();
       if (!name) {
@@ -122,16 +126,20 @@
         id: window.StorageAPI.createProjectId(db.seq++),
         schemaVersion: Constants.SCHEMA_VERSION,
         name: name,
-        code: document.getElementById('d-code').value.trim(),
-        plant: document.getElementById('d-plant').value.trim(),
-        owner: document.getElementById('d-owner').value.trim(),
+        
+        // --- 修改點：移除欄位以空字串/預設值取代以防結構報錯 ---
+        code: '', 
+        owner: '', 
+        contacts: { plant: '', hq: '' }, 
+        graceDays: 0, // 預設 0 天 (後續移至管理者畫面設定)
+        // -----------------------------------------------------
+
+        plant: document.getElementById('d-plant').value,
         fileName: draft.fileName,
         uploadedAt: db.today,
         createdAt: db.today,
         updatedAt: db.today,
         startDate: document.getElementById('d-start').value || startDate,
-        graceDays: Math.max(1, Math.min(365, Number(document.getElementById('d-grace').value) || 30)),
-        contacts: { plant: document.getElementById('d-pe').value.trim(), hq: document.getElementById('d-he').value.trim() },
         model: draft.model,
         wb: draft.wb,
         baseline: draft.baseline,
@@ -139,6 +147,7 @@
         mode: 'formula',
         reports: {}
       };
+      
       db.projects.push(project);
       Runtime.draft = null;
       Runtime.audit('create_project', { resourceType: 'project', resourceId: project.id, details: { name: project.name, fileName: project.fileName }, summary: '建立追蹤專案' });

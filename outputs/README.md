@@ -39,7 +39,9 @@ Excel `.xlsx` / `.xlsm` 解壓縮使用瀏覽器的 `DecompressionStream` API；
 
 ## 資料保存與隱私
 
-專案資料保存在 Supabase `projects` 表的 `project_data` 欄位。傳送前會嘗試以 gzip 壓縮大型工作簿 `wb`；載入時自動解壓，保留 IRR 計算所需的 `wb`、`model`、`baseline` 等資料。資料表需包含唯一且非空的文字欄位 `id`、`name`、`plant`、`owner`、JSONB `project_data`、`updated_at` 欄位。若既有表缺少 `id`，請在 Supabase SQL Editor 執行一次 [`supabase-migration.sql`](./supabase-migration.sql)；此 migration 會為既有列產生 ID，並寫入對應的 `project_data.id`。目前前端使用的匿名 publishable key 必須具有讀取、新增、更新、刪除所需的 RLS 政策。請勿在前端放置 service-role key。
+專案資料保存在 Supabase `projects` 表的 `project_data` 欄位。傳送前會嘗試以 gzip 壓縮大型工作簿 `wb`；載入時自動解壓，保留 IRR 計算所需的 `wb`、`model`、`baseline` 等資料。資料表需包含唯一且非空的文字欄位 `id`、`name`、`plant`、`owner`、JSONB `project_data`、`updated_at` 欄位。若既有表缺少 `id`，請在 Supabase SQL Editor 執行一次 [`supabase-migration.sql`](./supabase-migration.sql)；此 migration 會為既有列產生 ID，並寫入對應的 `project_data.id`。目前前端使用的匿名 publishable key 必須具有讀取、新增、更新、刪除所需的 RLS 政策。若匿名使用者無法更新或刪除，請在 SQL Editor 執行 [`supabase-projects-write-policies.sql`](./supabase-projects-write-policies.sql)。
+
+**注意：**此匿名政策會允許任何能呼叫 Supabase API 的人更新或刪除 `projects` 中的任何資料。只適合受控環境或測試，不能保護敏感資料；公開部署前應改為 Supabase Auth 與依使用者限制的 RLS。請勿在前端放置 service-role key。
 
 專案更新約每 10 秒同步到其他開啟中的頁面。若同一專案在兩端同時修改，存檔會先檢查雲端版本並在偵測到衝突時取消，請重新整理後再編輯。Excel 檔案仍在瀏覽器本機解析，不會上傳。
 
