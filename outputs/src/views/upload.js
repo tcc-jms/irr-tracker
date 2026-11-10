@@ -28,7 +28,7 @@
     var appEl = document.getElementById('app');
     if (!appEl) return;
 
-    appEl.innerHTML = '<h2>上傳提報 Excel</h2><p class="lead">選擇資本支出提報檔，系統會分析 IRR 工作表並在本機建立追蹤專案。</p>' +
+    appEl.innerHTML = '<h2>上傳提報 Excel</h2><p class="lead">選擇資本支出提報檔，系統會在瀏覽器解析後建立雲端追蹤專案。</p>' +
       '<div class="panel"><div class="drop" id="upload-drop" tabindex="0" role="button"><strong>拖曳 .xlsx 到這裡，或點選選擇檔案</strong><span class="muted small">檔案只在瀏覽器本機解析，不會上傳</span></div>' +
       '<input type="file" id="upload-file" accept=".xlsx,.xlsm" hidden><div id="upload-message"></div></div><div id="upload-preview"></div>';
 
@@ -119,7 +119,7 @@
       }
       var db = State.state.db;
       var project = {
-        id: 'P' + String(db.seq++).padStart(3, '0'),
+        id: window.StorageAPI.createProjectId(db.seq++),
         schemaVersion: Constants.SCHEMA_VERSION,
         name: name,
         code: document.getElementById('d-code').value.trim(),

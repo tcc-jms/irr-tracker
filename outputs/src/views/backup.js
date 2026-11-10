@@ -16,11 +16,9 @@
     var appEl = document.getElementById('app');
     if (!appEl) return;
     var db = State.state && State.state.db;
-    var usedKb = Storage.storageUsageKb ? Storage.storageUsageKb() : 0;
-    var maxKb = Constants.STORAGE_MAX_KB || 5000;
-    var percent = Math.min(100, Math.round(usedKb / maxKb * 100));
+    var usedKb = Storage.storageUsageKb ? Storage.storageUsageKb(db) : 0;
     appEl.innerHTML = '<h2>備份 / 恢復</h2><p class="lead">匯出或匯入完整追蹤資料。匯入會取代目前資料，請先備份。</p>' +
-      '<div class="panel"><h3>儲存空間</h3><div>目前使用：<b>' + usedKb + ' KB</b> / 約 ' + maxKb + ' KB</div><div class="storage-bar"><div class="storage-bar-fill" style="width:' + percent + '%"></div></div></div>' +
+      '<div class="panel"><h3>雲端專案資料</h3><div>目前專案資料估算：<b>' + usedKb + ' KB</b></div><p class="muted small">此估算僅包含本次載入的專案資料，不代表 Supabase 配額使用量。</p></div>' +
       '<div class="panel"><h3>匯出備份</h3><p class="muted">匯出專案、回報、通知與審計紀錄。</p><button class="btn" id="export-backup" type="button">下載 JSON 備份</button></div>' +
       '<div class="panel"><h3>匯入備份</h3><input type="file" id="import-backup-file" accept=".json,application/json" hidden><button class="btn ghost" id="choose-backup" type="button">選擇備份檔</button><div id="import-preview" style="margin-top:12px"></div></div>';
 

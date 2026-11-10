@@ -1,7 +1,6 @@
 /**
  * src/core/storage.js
- * localStorage 操作封裝
- * 負責資料持久化、遷移、匯出/匯入
+ * Supabase 專案資料存取、遷移、匯出/匯入
  */
 
 (function(root) {
@@ -9,193 +8,337 @@
 
   var C = window.AppConstants || {};
   var State = window.AppState || {};
+  var syncedProjects = [];
+  var saveQueue = Promise.resolve();
+  var migrationNotice = '';
 
-  /**
-   * 資料遷移函數
-   * 處理舊版本資料結構升級到新版本
-   * @param {Object} raw - 原始資料
-   * @returns {Object} 遷移後的資料
-   */
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
   function migrateDb(raw) {
     if (!raw) return null;
 
-    // 版本 1 → 版本 2 遷移
     if (!raw.schemaVersion || raw.schemaVersion < 2) {
       raw.schemaVersion = 2;
       raw.auditLogs = raw.auditLogs || [];
 
-      // 遍歷每個專案進行遷移
       for (var i = 0; i < (raw.projects || []).length; i++) {
-        var p = raw.projects[i];
-        p.schemaVersion = 2;
-
-        // 補充缺失的欄位
-        p.createdAt = p.uploadedAt || p.createdAt || raw.today || '';
-        p.updatedAt = p.updatedAt || p.createdAt;
-        if (!p.contacts) p.contacts = { plant: '', hq: '' };
-        if (!p.reports) p.reports = {};
-        if (!p.mode) p.mode = 'formula';
-        if (!p.reportRows) p.reportRows = [];
+        var project = raw.projects[i];
+        project.schemaVersion = 2;
+        project.createdAt = project.uploadedAt || project.createdAt || raw.today || '';
+        project.updatedAt = project.updatedAt || project.createdAt;
+        if (!project.contacts) project.contacts = { plant: '', hq: '' };
+        if (!project.reports) project.reports = {};
+        if (!project.mode) project.mode = 'formula';
+        if (!project.reportRows) project.reportRows = [];
       }
     }
 
     return raw;
   }
 
-  /**
-   * 從 localStorage 載入資料
-   * @returns {Object|null} 載入的資料或 null
-   */
-  function load() {
-    try {
-      var s = localStorage.getItem(C.STORAGE_KEY);
-      if (s) {
-        return migrateDb(JSON.parse(s));
-      }
-    } catch (e) {
-      console.error('Failed to load from localStorage:', e);
-    }
-    return null;
+  function getClient() {
+    if (!window.supabase) throw new Error('Supabase 尚未初始化，請確認網路連線並重新整理。');
+    return window.supabase;
   }
 
-  /**
-   * 保存資料到 localStorage
-   * @param {Object} db - 要保存的資料庫物件
-   * @param {Function} notifyFn - 通知函數（可選）
-   * @returns {boolean} 是否保存成功
-   */
-  function save(db, notifyFn) {
-    if (!db) {
-      console.error('Cannot save: db is null or undefined');
-      return false;
-    }
-
+  function readLegacyDb() {
     try {
-      var data = JSON.stringify(db);
-      var kb = Math.round(data.length * 2 / 1024);
-
-      // 檢查儲存空間上限
-      if (kb > C.STORAGE_MAX_KB) {
-        if (notifyFn) {
-          notifyFn('⚠ 儲存空間接近上限（' + kb + ' KB），請先匯出備份！');
-        }
-        return false;
-      }
-
-      // 保存到 localStorage
-      localStorage.setItem(C.STORAGE_KEY, data);
-
-      // 如果超過警告閾值，發出警告
-      if (kb > C.STORAGE_WARN_KB) {
-        if (notifyFn) {
-          notifyFn('注意：儲存空間已用 ' + kb + ' KB，建議匯出備份。');
-        }
-      }
-
-      return true;
-    } catch (e) {
-      console.error('Failed to save:', e);
-      if (notifyFn) {
-        if (e.name === 'QuotaExceededError') {
-          notifyFn('❌ 儲存空間已滿！請立即匯出備份並清理資料。');
-        } else {
-          notifyFn('保存失敗：' + e.message);
-        }
-      }
-      return false;
-    }
-  }
-
-  /**
-   * 計算 localStorage 使用的空間大小
-   * @returns {number} 使用的空間（KB）
-   */
-  function storageUsageKb() {
-    try {
-      var s = localStorage.getItem(C.STORAGE_KEY) || '';
-      return Math.round(s.length * 2 / 1024);
-    } catch (e) {
-      console.error('Failed to calculate storage usage:', e);
-      return 0;
-    }
-  }
-
-  /**
-   * 匯出資料為 JSON 字串
-   * 用於備份或下載到本地
-   * @param {Object} db - 要匯出的資料庫物件
-   * @returns {string} JSON 字串
-   */
-  function exportData(db) {
-    if (!db) return '';
-    try {
-      return JSON.stringify(db, null, 2);
-    } catch (e) {
-      console.error('Failed to export data:', e);
-      return '';
-    }
-  }
-
-  /**
-   * 匯入 JSON 資料
-   * @param {string} jsonStr - JSON 字串
-   * @returns {Object|null} 解析後的資料或 null
-   */
-  function importData(jsonStr) {
-    if (!jsonStr) return null;
-    try {
-      var data = JSON.parse(jsonStr);
-      // 驗證基本結構
-      if (!data || typeof data !== 'object') {
-        throw new Error('Invalid data format');
-      }
-      // 進行遷移檢查
-      return migrateDb(data);
-    } catch (e) {
-      console.error('Failed to import data:', e);
+      var serialized = window.localStorage.getItem(C.STORAGE_KEY);
+      return serialized ? migrateDb(JSON.parse(serialized)) : null;
+    } catch (error) {
+      console.error('Failed to read local migration data:', error);
+      migrationNotice = '無法讀取此瀏覽器的舊資料；雲端資料未受影響。';
       return null;
     }
   }
 
-  /**
-   * 清除所有資料
-   * 用於重置應用或卸載
-   */
-  function clear() {
+  function removeLegacyDb() {
     try {
-      localStorage.removeItem(C.STORAGE_KEY);
-    } catch (e) {
-      console.error('Failed to clear storage:', e);
+      window.localStorage.removeItem(C.STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to remove migrated local data:', error);
+      migrationNotice = '專案已遷移至雲端，但無法清除本機舊資料。';
     }
   }
 
-  /**
-   * 初始化儲存系統
-   * 載入已保存的資料並同步到狀態
-   * @returns {Object} 載入的資料庫物件
-   */
-  function initialize() {
-    var loadedDb = load();
-    var db = loadedDb || {
+  function normalizeProjects(rows) {
+    return (rows || []).map(function(row) {
+      if (!row || typeof row.id !== 'string' || !row.project_data ||
+          typeof row.project_data !== 'object' || Array.isArray(row.project_data)) {
+        throw new Error('Supabase projects 表含有格式不正確的資料，請檢查 project_data 欄位。');
+      }
+      var project = row.project_data;
+      project.id = row.id;
+      return project;
+    });
+  }
+
+  async function loadProjectsFromSupabase() {
+    var result = await getClient()
+      .from('projects')
+      .select('id, project_data')
+      .order('updated_at', { ascending: false });
+    if (result.error) {
+      console.error('Supabase project load failed:', result.error);
+      throw new Error('無法從 Supabase 載入專案：' + result.error.message);
+    }
+    return normalizeProjects(result.data);
+  }
+
+  function projectMap(projects) {
+    var result = Object.create(null);
+    (projects || []).forEach(function(project) {
+      result[String(project.id)] = project;
+    });
+    return result;
+  }
+
+  function sameValue(left, right) {
+    return JSON.stringify(left) === JSON.stringify(right);
+  }
+
+  function sameProjects(left, right) {
+    var leftMap = projectMap(left);
+    var rightMap = projectMap(right);
+    var leftIds = Object.keys(leftMap).sort();
+    var rightIds = Object.keys(rightMap).sort();
+    return sameValue(leftIds, rightIds) && leftIds.every(function(id) {
+      return sameValue(leftMap[id], rightMap[id]);
+    });
+  }
+
+  function getSaveChanges(projects) {
+    var previous = projectMap(syncedProjects);
+    var current = projectMap(projects);
+    var upserts = [];
+    var deletions = [];
+    var changedIds = [];
+
+    Object.keys(current).forEach(function(id) {
+      if (!previous[id] || !sameValue(previous[id], current[id])) {
+        var project = current[id];
+        upserts.push({
+          id: id,
+          name: project.name || '',
+          plant: project.plant || '',
+          owner: project.owner || '',
+          project_data: project,
+          updated_at: new Date().toISOString()
+        });
+        changedIds.push(id);
+      }
+    });
+
+    Object.keys(previous).forEach(function(id) {
+      if (!current[id]) {
+        deletions.push(id);
+        changedIds.push(id);
+      }
+    });
+
+    return {
+      previous: previous,
+      upserts: upserts,
+      deletions: deletions,
+      changedIds: changedIds
+    };
+  }
+
+  function recordSyncedChanges(upserts, deletions) {
+    var projects = projectMap(syncedProjects);
+    (upserts || []).forEach(function(row) {
+      projects[row.id] = clone(row.project_data);
+    });
+    (deletions || []).forEach(function(id) {
+      delete projects[id];
+    });
+    syncedProjects = Object.keys(projects).map(function(id) {
+      return projects[id];
+    });
+  }
+
+  async function checkForConflicts(changes) {
+    if (!changes.changedIds.length) return;
+    var result = await getClient()
+      .from('projects')
+      .select('id, project_data')
+      .in('id', changes.changedIds);
+    if (result.error) {
+      console.error('Supabase conflict check failed:', result.error);
+      throw new Error('無法確認雲端專案是否已被其他同事修改：' + result.error.message);
+    }
+
+    var remote = projectMap(normalizeProjects(result.data));
+    changes.changedIds.forEach(function(id) {
+      var base = changes.previous[id];
+      var remoteProject = remote[id];
+      if ((!base && remoteProject) || (base && (!remoteProject || !sameValue(base, remoteProject)))) {
+        throw new Error('專案「' + id + '」已被其他同事修改。為避免覆蓋資料，這次存檔已取消；請重新整理後再編輯。');
+      }
+    });
+  }
+
+  async function persistProjects(projects) {
+    var changes = getSaveChanges(projects);
+    if (!changes.changedIds.length) return true;
+
+    await checkForConflicts(changes);
+
+    if (changes.upserts.length) {
+      var upsertResult = await getClient().from('projects').upsert(changes.upserts, { onConflict: 'id' });
+      if (upsertResult.error) {
+        console.error('Supabase project save failed:', upsertResult.error);
+        throw new Error('專案雲端存檔失敗：' + upsertResult.error.message);
+      }
+      recordSyncedChanges(changes.upserts);
+    }
+
+    if (changes.deletions.length) {
+      var deleteResult = await getClient().from('projects').delete().in('id', changes.deletions);
+      if (deleteResult.error) {
+        console.error('Supabase project delete failed:', deleteResult.error);
+        throw new Error('雲端刪除專案失敗：' + deleteResult.error.message);
+      }
+      recordSyncedChanges([], changes.deletions);
+    }
+
+    return true;
+  }
+
+  function save(db, notifyFn) {
+    if (!db || !Array.isArray(db.projects)) {
+      var invalidDbError = new Error('無法保存：專案資料格式不正確。');
+      console.error(invalidDbError.message);
+      if (notifyFn) notifyFn(invalidDbError.message);
+      return Promise.resolve(false);
+    }
+
+    var projects = clone(db.projects);
+    var task = saveQueue.then(function() {
+      return persistProjects(projects);
+    }).catch(function(error) {
+      console.error('Supabase save failed:', error);
+      if (notifyFn) notifyFn(error.message);
+      return false;
+    });
+    saveQueue = task.then(function() {}, function() {});
+    return task;
+  }
+
+  async function refreshProjects() {
+    return loadProjectsFromSupabase();
+  }
+
+  function acceptRemoteProjects(projects) {
+    syncedProjects = clone(projects || []);
+  }
+
+  function hasLocalChanges(db) {
+    return !!(db && !sameProjects(db.projects, syncedProjects));
+  }
+
+  function getMigrationNotice() {
+    var notice = migrationNotice;
+    migrationNotice = '';
+    return notice;
+  }
+
+  function storageUsageKb(db) {
+    try {
+      var data = JSON.stringify(db && db.projects || []);
+      return Math.round(data.length * 2 / 1024);
+    } catch (error) {
+      console.error('Failed to estimate project data size:', error);
+      return 0;
+    }
+  }
+
+  function exportData(db) {
+    if (!db) return '';
+    try {
+      return JSON.stringify(db, null, 2);
+    } catch (error) {
+      console.error('Failed to export data:', error);
+      return '';
+    }
+  }
+
+  function importData(jsonStr) {
+    if (!jsonStr) return null;
+    try {
+      var data = JSON.parse(jsonStr);
+      if (!data || typeof data !== 'object') throw new Error('Invalid data format');
+      return migrateDb(data);
+    } catch (error) {
+      console.error('Failed to import data:', error);
+      return null;
+    }
+  }
+
+  function clear() {
+    try {
+      window.localStorage.removeItem(C.STORAGE_KEY);
+    } catch (error) {
+      console.error('Failed to clear local migration data:', error);
+    }
+  }
+
+  async function initialize() {
+    var cloudProjects = await loadProjectsFromSupabase();
+    syncedProjects = clone(cloudProjects);
+    var db = {
       schemaVersion: C.SCHEMA_VERSION,
       version: 1,
-      projects: [],
+      projects: cloudProjects,
       notices: [],
       auditLogs: [],
       today: new Date().toISOString().slice(0, 10),
       seq: 1
     };
 
-    // 同步到全局狀態
-    if (State.setDb) {
-      State.setDb(db);
+    var legacyDb = readLegacyDb();
+    if (legacyDb && legacyDb.seeded) db.seeded = true;
+    if (legacyDb && legacyDb.projects && legacyDb.projects.length && !cloudProjects.length) {
+      db.projects = legacyDb.projects;
+      db.seq = legacyDb.seq || 1;
+      var migrated = await save(db);
+      if (!migrated) throw new Error('本機專案遷移至雲端失敗；本機資料已保留，請檢查 Supabase 權限後重試。');
+      removeLegacyDb();
+      migrationNotice = '已將 ' + db.projects.length + ' 個本機專案遷移至雲端。通知與操作紀錄不在本次遷移範圍。';
+    } else if (legacyDb && legacyDb.projects && legacyDb.projects.length && cloudProjects.length) {
+      migrationNotice = '雲端已有專案；為避免覆蓋或重複，本機專案未自動遷移，且已保留本機舊資料。';
     }
 
+    if (!db.projects.length) db.seq = 1;
+    else {
+      var highestSequence = db.projects.reduce(function(highest, project) {
+        var match = /^P(\d+)/.exec(project.id || '');
+        return match ? Math.max(highest, Number(match[1])) : highest;
+      }, 0);
+      db.seq = Math.max(Number(db.seq) || 1, highestSequence + 1);
+    }
+
+    if (State.setDb) State.setDb(db);
     return db;
   }
 
+  function createProjectId(sequence) {
+    var randomPart;
+    if (window.crypto && window.crypto.randomUUID) randomPart = window.crypto.randomUUID().slice(0, 8);
+    else randomPart = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    return 'P' + String(sequence).padStart(3, '0') + '-' + randomPart;
+  }
+
   window.StorageAPI = {
-    load: load,
+    load: loadProjectsFromSupabase,
+    loadProjectsFromSupabase: loadProjectsFromSupabase,
+    refreshProjects: refreshProjects,
+    acceptRemoteProjects: acceptRemoteProjects,
+    hasLocalChanges: hasLocalChanges,
+    getMigrationNotice: getMigrationNotice,
+    createProjectId: createProjectId,
     save: save,
     migrate: migrateDb,
     export: exportData,

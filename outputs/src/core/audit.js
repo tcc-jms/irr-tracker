@@ -10,11 +10,6 @@
   var State = window.AppState || {};
   var C = window.AppConstants || {};
 
-  function persist() {
-    var Storage = window.StorageAPI || {};
-    if (State.state && State.state.db && Storage.save) Storage.save(State.state.db);
-  }
-
   /**
    * 生成審計記錄 ID
    * 簡單的順序 ID，結合時間戳
@@ -83,8 +78,6 @@
 
     // 發出狀態變更通知
     State.set({ db: State.state.db });
-    persist();
-
     console.log('[AUDIT]', action, '|', record.resourceType, record.resourceId);
 
     return record;

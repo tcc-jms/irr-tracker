@@ -18,6 +18,8 @@ window.supabase = supabase;
   var Access = window.AppAccess || {};
   var liveEdit = null;
   var draft = null;
+  var syncTimer = null;
+  var lastSyncError = '';
 
   function save() {
     var db = State.state && State.state.db;
@@ -50,7 +52,7 @@ window.supabase = supabase;
     }
   });
 
-  function initializeSeedData(db) {
+  async function initializeSeedData(db) {
     var seed = window.AppSeed;
     if (!seed || db.projects.length || db.seeded || !Engine.makeCalc || !Engine.snapshot) return;
     try {
@@ -58,7 +60,7 @@ window.supabase = supabase;
       var baseline = Engine.snapshot(calc, seed.model);
       var reportRows = Compute.getReportRows ? Compute.getReportRows(seed.model, baseline) : [];
       db.projects.push({
-        id: 'P' + String(db.seq++).padStart(3, '0'),
+        id: Storage.createProjectId(db.seq++),
         schemaVersion: Constants.SCHEMA_VERSION,
         name: seed.meta.name,
         code: seed.meta.code || '',
@@ -79,15 +81,16 @@ window.supabase = supabase;
         reports: {}
       });
       db.seeded = true;
-      save();
-    } catch (e) {
-      console.error('SEED initialization failed:', e);
+      if (!await save()) throw new Error('範例專案未能保存至 Supabase。');
+    } catch (error) {
+      console.error('SEED initialization failed:', error);
+      throw error;
     }
   }
 
-  function initialize() {
+  async function initialize() {
     console.log('Initializing IRR Tracker v' + Constants.VERSION);
-    var db = Storage.initialize ? Storage.initialize() : null;
+    var db = Storage.initialize ? await Storage.initialize() : null;
     if (!db) {
       db = {
         schemaVersion: Constants.SCHEMA_VERSION,
@@ -104,10 +107,14 @@ window.supabase = supabase;
     db.auditLogs = db.auditLogs || [];
     db.seq = db.seq || 1;
     if (State.setDb) State.setDb(db);
-    initializeSeedData(db);
+    await initializeSeedData(db);
+    if (Storage.getMigrationNotice) {
+      var notice = Storage.getMigrationNotice();
+      if (notice && window.AppToast) window.AppToast.show(notice, 8000);
+    }
     bindNavigation();
     bindDatePicker();
-    if (Notifications.runScheduler && Notifications.runScheduler(db, db.today)) save();
+    if (Notifications.runScheduler) Notifications.runScheduler(db, db.today);
     audit('app_start', {
       resourceType: 'system',
       resourceId: 'main',
@@ -115,7 +122,62 @@ window.supabase = supabase;
       summary: '應用程式啟動'
     });
     if (Router.route) Router.route();
+    startProjectSync();
     console.log('Application initialized');
+  }
+
+  function startProjectSync() {
+    if (syncTimer) window.clearInterval(syncTimer);
+    syncTimer = window.setInterval(syncProjects, 10000);
+  }
+
+  async function syncProjects() {
+    var db = State.state && State.state.db;
+    var page = Router.getCurrentPage && Router.getCurrentPage();
+    var modal = document.getElementById('modal');
+    if (!db || document.visibilityState === 'hidden' || liveEdit || draft ||
+        (page !== 'overview' && page !== 'project') ||
+        (modal && modal.classList.contains('show')) ||
+        (Storage.hasLocalChanges && Storage.hasLocalChanges(db))) return;
+    try {
+      var projects = await Storage.refreshProjects();
+      if (Storage.hasLocalChanges && Storage.hasLocalChanges(db)) return;
+      if (JSON.stringify(projects) === JSON.stringify(db.projects)) {
+        lastSyncError = '';
+        return;
+      }
+      db.projects = projects;
+      if (State.setDb) State.setDb(db);
+      if (Storage.acceptRemoteProjects) Storage.acceptRemoteProjects(projects);
+      if (Router.route) Router.route();
+      lastSyncError = '';
+    } catch (error) {
+      if (error.message !== lastSyncError) {
+        console.error('Project sync failed:', error);
+        if (window.AppToast) window.AppToast.show('雲端同步失敗：' + error.message, 8000);
+        lastSyncError = error.message;
+      }
+    }
+  }
+
+  function showInitializationError(error) {
+    console.error('Application initialization failed:', error);
+    var appEl = document.getElementById('app');
+    if (!appEl) return;
+    appEl.innerHTML = '';
+    var message = document.createElement('div');
+    message.className = 'err';
+    message.textContent = '無法連線或初始化 Supabase：' + error.message + ' 請確認網路、projects 表與 RLS 政策後重試。';
+    var retry = document.createElement('button');
+    retry.className = 'btn';
+    retry.type = 'button';
+    retry.textContent = '重新連線';
+    retry.addEventListener('click', function() {
+      retry.disabled = true;
+      initialize().catch(showInitializationError);
+    });
+    appEl.appendChild(message);
+    appEl.appendChild(retry);
   }
 
   function bindNavigation() {
@@ -168,6 +230,8 @@ window.supabase = supabase;
     });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize);
-  else initialize();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function() {
+    initialize().catch(showInitializationError);
+  });
+  else initialize().catch(showInitializationError);
 })(typeof window !== 'undefined' ? window : globalThis);
