@@ -230,12 +230,6 @@
 
     var remote = projectMap(await normalizeProjects(result.data));
     changes.changedIds.forEach(function(id) {
-
-      // 如果是 deletion，不做 conflict check
-      if (changes.deletions.includes(id)) {
-        return;
-      }
-
       var base = changes.previous[id];
       var remoteProject = remote[id];
 
@@ -275,10 +269,24 @@
     }
 
     if (changes.deletions.length) {
-      var deleteResult = await getClient().from('projects').delete().in('id', changes.deletions);
+      var deleteResult = await getClient()
+        .from('projects')
+        .delete()
+        .in('id', changes.deletions)
+        .select('id');
       if (deleteResult.error) {
         console.error('Supabase project delete failed:', deleteResult.error);
         throw new Error('雲端刪除專案失敗：' + deleteResult.error.message);
+      }
+      var deletedIds = (deleteResult.data || []).map(function(row) { return row.id; });
+      var notDeleted = changes.deletions.filter(function(id) {
+        return deletedIds.indexOf(id) === -1;
+      });
+      if (notDeleted.length) {
+        throw new Error(
+          '雲端未確認刪除專案「' + notDeleted.join('、') +
+          '」。請檢查 Supabase DELETE RLS 政策與資料表權限。'
+        );
       }
       recordSyncedChanges([], changes.deletions);
     }

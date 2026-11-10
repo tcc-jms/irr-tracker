@@ -105,9 +105,19 @@
     });
 
     document.getElementById('s-del').addEventListener('click', function() {
-      Runtime.confirm('確認刪除專案', '<p>確定要刪除「<b>' + escape(project.name) + '</b>」及所有回報紀錄？此操作無法復原。</p>', function() {
+      Runtime.confirm('確認刪除專案', '<p>確定要刪除「<b>' + escape(project.name) + '</b>」及所有回報紀錄？此操作無法復原。</p>', async function() {
+        var previousProjects = db.projects.slice();
+        var previousNotices = (db.notices || []).slice();
         db.projects = db.projects.filter(function(item) { return item.id !== project.id; });
         db.notices = (db.notices || []).filter(function(item) { return item.pid !== project.id; });
+        var saved = Runtime.save ? await Runtime.save() : false;
+        if (!saved) {
+          db.projects = previousProjects;
+          db.notices = previousNotices;
+          if (State.setDb) State.setDb(db);
+          render(projectId);
+          return;
+        }
         Runtime.audit('delete_project', { resourceType: 'project', resourceId: project.id, details: { name: project.name }, summary: '刪除專案' });
         window.AppRouter.navigate('/overview');
       }, { danger: true, okLabel: '確認刪除' });
