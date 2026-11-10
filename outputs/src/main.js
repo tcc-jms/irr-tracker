@@ -2,8 +2,8 @@
  * src/main.js
  * 應用程式主入口
  */
-import { supabase } from './core/supabase.js'
-window.supabase = supabase
+import { supabase } from './core/supabase.js';
+window.supabase = supabase;
 (function(root) {
   'use strict';
 
