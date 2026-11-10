@@ -13,15 +13,21 @@
     var state = window.AppState && window.AppState.state;
     var notifications = window.AppNotifications;
     if (!runtime || !project || !state || !state.db) return false;
-    var realToday = (window.AppDates && window.AppDates.today) ? window.AppDates.today() : new Date().toISOString().slice(0, 10);
-        var targetYear = Number(year);
-        
-        var status = notifications.scheduleProject(project, realToday).filter(function(item) { return item.year === targetYear; })[0];
-        
-        if (!status || ['due', 'late', 'ok'].indexOf(status.status) === -1) {
-          runtime.toast('此年度尚未開放回報');
-          return false;
-        }
+    // 確保使用系統封裝好的今日標準格式，若抓不到則用安全預設值
+    var dates = window.AppDates || {};
+    var realToday = dates.today ? dates.today() : new Date().toISOString().slice(0, 10);
+    var targetYear = Number(year);
+
+    // 強制重新計算 Schedule（解決資料庫 cache 的 today 過期的問題）
+    var schedule = notifications.scheduleProject(project, realToday);
+    var status = schedule.filter(function(item) { return item.year === targetYear; })[0];
+
+    if (!status || ['due', 'late', 'ok'].indexOf(status.status) === -1) {
+      // 若想確認為何失敗，可以暫時把這行取消註解來看真實數值：
+      // runtime.toast('目前日期:' + realToday + '，預期狀態:' + (status ? status.status : '無'));
+      runtime.toast('此年度尚未開放回報');
+      return false;
+    }
     var reportRows = Compute.getReportRows ? Compute.getReportRows(project.model, project.baseline) : project.reportRows || [];
     var normalizedValues = {};
     (project.model.sections || []).slice(0, 2).forEach(function(section) {
