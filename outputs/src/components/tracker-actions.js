@@ -13,11 +13,15 @@
     var state = window.AppState && window.AppState.state;
     var notifications = window.AppNotifications;
     if (!runtime || !project || !state || !state.db) return false;
-    var status = notifications.scheduleProject(project, state.db.today).filter(function(item) { return item.year === year; })[0];
-    if (!status || ['due', 'late', 'ok'].indexOf(status.status) === -1) {
-      runtime.toast('此年度尚未開放回報');
-      return false;
-    }
+    var realToday = (window.AppDates && window.AppDates.today) ? window.AppDates.today() : new Date().toISOString().slice(0, 10);
+        var targetYear = Number(year);
+        
+        var status = notifications.scheduleProject(project, realToday).filter(function(item) { return item.year === targetYear; })[0];
+        
+        if (!status || ['due', 'late', 'ok'].indexOf(status.status) === -1) {
+          runtime.toast('此年度尚未開放回報');
+          return false;
+        }
     var reportRows = Compute.getReportRows ? Compute.getReportRows(project.model, project.baseline) : project.reportRows || [];
     var normalizedValues = {};
     (project.model.sections || []).slice(0, 2).forEach(function(section) {
