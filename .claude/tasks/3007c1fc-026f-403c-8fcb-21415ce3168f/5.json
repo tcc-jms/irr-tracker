@@ -1,0 +1,9 @@
+{
+  "id": "5",
+  "subject": "第二階段拆分：Step 5 拆分 core/audit.js",
+  "description": "實現審計日誌系統：\n- log(action, details, user) - 記錄操作\n- getHistory(limit) - 取得最近操作\n- clear() - 清空日誌\n- export() - 匯出審計日誌\n\n需要依賴 AppConstants (AUDIT_ACTION) 和 AppState (db.auditLogs)。\n每條記錄包括：時間戳、操作類型、操作人、受影響的資源、詳細說明。\n\n完成後停止，等待用戶說「繼續」。",
+  "activeForm": "實現審計日誌系統",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

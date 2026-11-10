@@ -1,0 +1,9 @@
+{
+  "id": "6",
+  "subject": "第二階段拆分：Step 6 拆分 engine 模組",
+  "description": "從原始 HTML 中提取 Excel 引擎相關代碼：\n\n- src/engine/excel-parser.js\n  - readZip, parseWorkbook, parseSheet - Excel 檔案解析\n  - colToNum, numToCol, splitAddr, addr - 座標轉換\n\n- src/engine/formula-engine.js\n  - tokenize, parse, shiftFormula - 公式解析\n  - makeCalc - 公式計算引擎\n  - FN 函數庫（SUM, AVERAGE, IRR, NPV 等）\n\n- src/engine/irr-engine.js\n  - findIrrSheet, analyzeIrr - IRR 分頁分析\n  - snapshot, buildOverrides, extractNeeded - 快照和覆蓋\n  - irrCalc - IRR 計算核心\n  - 保持 window.IRREngine API 相容性\n\n- src/engine/compute.js\n  - 高階計算接口（暫時為空）\n\n完成後停止，等待用戶說「繼續」。",
+  "activeForm": "提取 Excel 引擎到 engine 模組",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

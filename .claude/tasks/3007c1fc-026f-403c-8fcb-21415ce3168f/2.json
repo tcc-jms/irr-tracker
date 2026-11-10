@@ -1,0 +1,9 @@
+{
+  "id": "2",
+  "subject": "第二階段拆分：Step 2 拆分 utils 模組",
+  "description": "從原始 HTML 中提取工具函數，填入各個 utils 模組：\n- src/utils/esc.js - unesc, attr 等轉義函數\n- src/utils/dom.js - DOM 操作工具\n- src/utils/format.js - fmtText 等格式化函數\n- src/utils/dates.js - 日期操作工具\n\n完成後停止，等待用戶說「繼續」。",
+  "activeForm": "提取工具函數到 utils 模組",
+  "status": "completed",
+  "blocks": [],
+  "blockedBy": []
+}

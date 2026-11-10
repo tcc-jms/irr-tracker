@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>資本支出 IRR 效益追蹤</title>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#EDEFEC;--panel:#FFFFFF;--ink:#1D2733;--muted:#5F6B76;--line:#D5D9D4;--soft:#F5F6F4;
+  --plan:#8C97A3;--act:#0E6B65;--act-soft:#E2F0EE;--neg:#B23A2E;--neg-soft:#F8E7E4;
+  --pos:#2B7A4B;--pos-soft:#E5F2EA;--warn:#9A6514;--warn-soft:#FBF0DC;
+  --font:"Noto Sans TC","Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
+  --frozen-w:220px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 var(--font)}
+.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+a{color:var(--act)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--act);outline-offset:2px}
+header.top{background:var(--ink);color:#fff;display:flex;align-items:center;gap:20px;padding:0 24px;min-height:56px;flex-wrap:wrap}
+header.top h1{font-size:16px;font-weight:600;margin:0;letter-spacing:.02em}
+header.top nav{display:flex;gap:2px;flex:1;flex-wrap:wrap}
+header.top nav a{color:#C8D0D8;text-decoration:none;padding:16px 12px;border-bottom:3px solid transparent}
+header.top nav a.on{color:#fff;border-bottom-color:#5FC4B8}
+header.top nav a .badge{background:#5FC4B8;color:var(--ink);border-radius:9px;padding:0 6px;font-size:12px;margin-left:4px;font-weight:600}
+.clock{display:flex;align-items:center;gap:6px;font-size:13px;color:#C8D0D8}
+.clock input{background:#2C3846;border:1px solid #46525F;color:#fff;border-radius:4px;padding:2px 6px;width:140px}
+.clock input::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.85;cursor:pointer}
+main{max-width:1300px;margin:0 auto;padding:28px 24px 80px}
+h2{font-size:22px;font-weight:600;margin:0 0 4px}
+h3{font-size:16px;font-weight:600;margin:0 0 12px}
+.lead{color:var(--muted);margin:0 0 24px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px 22px;margin-bottom:20px}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--act);background:var(--act);color:#fff;padding:7px 16px;border-radius:4px;cursor:pointer;text-decoration:none;font-weight:500;white-space:nowrap}
+.btn:hover{background:#0A5550}
+.btn.ghost{background:#fff;color:var(--act)}
+.btn.ghost:hover{background:var(--act-soft)}
+.btn.danger{background:#fff;color:var(--neg);border-color:#D9A39C}
+.btn.danger:hover{background:var(--neg-soft)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:3px 10px;font-size:13px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-weight:600;text-align:left;color:var(--muted);font-size:12.5px;background:var(--soft)}
+tr.clickable{cursor:pointer}
+tr.clickable:hover td{background:#F4F8F7}
+.tag{display:inline-block;border-radius:3px;padding:0 7px;font-size:12px;line-height:20px;white-space:nowrap}
+.tag.ok{background:var(--pos-soft);color:var(--pos)}
+.tag.due{background:var(--warn-soft);color:var(--warn)}
+.tag.late{background:var(--neg-soft);color:var(--neg)}
+.tag.idle{background:var(--soft);color:var(--muted);border:1px solid var(--line)}
+.tag.auto{background:var(--soft);color:var(--muted)}
+.d-neg{color:var(--neg)}
+.d-pos{color:var(--pos)}
+.irr-hero{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px 28px;padding:24px 28px}
+.irr-hero .fig .lab{color:var(--muted);font-size:13px}
+.irr-hero .fig .val{font-size:44px;font-weight:300;line-height:1.1;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.irr-hero .fig.plan .val{color:var(--plan)}
+.irr-hero .fig.act .val{color:var(--act);font-weight:500}
+.irr-hero .slope{height:70px}
+.irr-hero .delta{grid-column:1/-1;display:flex;gap:28px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px;margin-top:6px;align-items:center}
+.tracker-wrap{position:relative;overflow:hidden;border-radius:0 0 6px 6px}
+.tracker-scroll{overflow-x:auto;margin-left:var(--frozen-w)}
+.tracker-frozen{position:absolute;left:0;top:0;width:var(--frozen-w);z-index:10;background:var(--panel)}
+.tracker-frozen table{width:var(--frozen-w);table-layout:fixed;border-collapse:collapse}
+.tracker-frozen table td,.tracker-frozen table th{border-bottom:1px solid var(--line);border-right:2px solid var(--line);padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--panel);vertical-align:middle}
+.tracker-scroll table{border-collapse:collapse;white-space:nowrap}
+.tracker-scroll table th,.tracker-scroll table td{border-bottom:1px solid var(--line);border-left:1px solid var(--line);padding:0;vertical-align:middle}
+.tracker-table-scroll{overflow-x:auto;max-width:100%}
+.tracker-table{min-width:max-content;border-collapse:collapse;white-space:nowrap}
+.tracker-table th:first-child,.tracker-table td:first-child{position:sticky;left:0;min-width:220px;z-index:2;background:var(--panel);text-align:left}
+.tracker-table th:first-child{background:var(--soft)}
+.tracker-table .tracker-section th{background:#F0F3F2}
+.tracker-table .tracker-subtotal th{background:#F7F8F6;font-weight:600}
+.yr-head-wrap{display:flex;flex-direction:column;text-align:center}
+.yr-name{font-weight:600;font-size:12.5px;padding:5px 8px 2px;display:flex;align-items:center;justify-content:center;gap:6px}
+.yr-period{font-size:11px;color:var(--muted);padding:0 8px 3px}
+.yr-status{font-size:11px;padding:2px 6px 4px;min-height:18px}
+.yr-sub{display:flex;border-top:1px solid var(--line)}
+.yr-sub-cell{flex:1;text-align:center;padding:3px 6px;font-size:11px;color:var(--muted)}
+.yr-sub-cell.act-label{color:var(--act)}
+.yr-sub-cell+.yr-sub-cell{border-left:1px solid var(--line)}
+.col-plan{width:90px;min-width:90px;text-align:right;font-size:13px;padding:5px 8px;font-variant-numeric:tabular-nums}
+.col-act{width:106px;min-width:106px;text-align:right;font-size:13px;padding:3px 5px;font-variant-numeric:tabular-nums}
+.t-inp{border:1.5px solid #3F7FBF;border-radius:3px;padding:3px 6px;width:94px;text-align:right;background:#fff;font-size:13px;font-variant-numeric:tabular-nums;display:block}
+.t-inp.filled{border-color:var(--act);background:#EDF7F5}
+.t-inp:invalid{border-color:var(--neg);background:var(--neg-soft)}
+.irr-bar{position:sticky;bottom:0;background:var(--ink);color:#fff;display:flex;align-items:stretch;border-top:2px solid var(--act);z-index:30;box-shadow:0 -4px 16px rgba(0,0,0,.18)}
+.irr-bar-inner{display:flex;align-items:center;gap:20px;padding:10px 20px;flex:1;flex-wrap:wrap}
+.irr-fig{display:flex;flex-direction:column;line-height:1.2;min-width:100px}
+.irr-fig .l{font-size:11px;color:#8C97A3}
+.irr-fig .v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.irr-fig.plan .v{color:var(--plan)}
+.irr-fig.act .v{color:#5FC4B8}
+.irr-arrow{font-size:18px;color:#46525F}
+.irr-diff{font-size:14px;font-weight:600}
+.irr-diff.pos{color:#5FC4B8}
+.irr-diff.neg{color:#EF8C84}
+.irr-save{padding:10px 20px;border-left:1px solid #2C3846;display:flex;flex-direction:column;justify-content:center;gap:5px;min-width:200px}
+.save-btn{background:var(--act);color:#fff;border:none;border-radius:4px;padding:8px 20px;cursor:pointer;font-weight:600;font-size:14px;white-space:nowrap}
+.save-btn:disabled{opacity:.4;cursor:not-allowed}
+.save-btn:hover:not(:disabled){background:#0A5550}
+.yr-menu-wrap{position:relative;display:inline-block}
+.yr-menu-btn{background:none;border:1px solid #46525F;color:#C8D0D8;border-radius:3px;padding:1px 6px;cursor:pointer;font-size:11px;line-height:1.6}
+.yr-menu-btn:hover{background:#2C3846}
+.yr-menu-btn.danger{background:var(--neg);border-color:var(--neg);color:#fff}
+.yr-menu-btn.danger:hover{background:#912F25;border-color:#912F25}
+.yr-menu{display:none;position:absolute;top:100%;right:0;background:var(--panel);border:1px solid var(--line);border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:50;min-width:140px}
+.yr-menu.open{display:block}
+.yr-menu button{display:block;width:100%;text-align:left;padding:7px 14px;border:0;background:none;cursor:pointer;font-size:13px;color:var(--ink)}
+.yr-menu button:hover{background:var(--soft)}
+.yr-menu button.danger{color:var(--neg)}
+.drop{border:2px dashed #AEB7B2;border-radius:6px;background:#F7F8F6;padding:44px 20px;text-align:center;cursor:pointer}
+.drop.over{border-color:var(--act);background:var(--act-soft)}
+.drop strong{display:block;font-size:16px;margin-bottom:4px}
+.err{background:var(--neg-soft);color:var(--neg);border-radius:4px;padding:10px 14px;margin:12px 0}
+.note{background:var(--warn-soft);color:#6B4A10;border-radius:4px;padding:10px 14px;margin:12px 0}
+.okbox{background:var(--pos-soft);color:#1F5C38;border-radius:4px;padding:10px 14px;margin:12px 0}
+label.f{display:block;margin-bottom:12px}
+label.f span{display:block;font-size:12.5px;color:var(--muted);margin-bottom:3px}
+input[type=text],input[type=email],input[type=date],input[type=number],select,textarea{border:1px solid #C3C9C4;border-radius:4px;padding:6px 9px;background:#fff;width:100%}
+.clock input[type=date]{width:140px;background:#2C3846;color:#fff;color-scheme:dark;-webkit-text-fill-color:#fff}
+.clock input[type=date]::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.85;cursor:pointer}
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0 20px}
+.seg{display:inline-flex;border:1px solid #C3C9C4;border-radius:4px;overflow:hidden}
+.seg button{border:0;background:#fff;padding:3px 10px;font-size:12.5px;cursor:pointer}
+.seg button.on{background:var(--act);color:#fff}
+.empty{padding:36px 10px;text-align:center;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:4px;box-shadow:0 4px 18px rgba(20,30,40,.25);z-index:999;pointer-events:none}
+.notice{border:1px solid var(--line);border-radius:6px;background:#fff;margin-bottom:10px}
+.notice summary{display:flex;gap:10px;align-items:center;padding:10px 14px;cursor:pointer;list-style:none;flex-wrap:wrap}
+.notice summary::-webkit-details-marker{display:none}
+.notice .ch{font-size:11.5px;border:1px solid var(--line);border-radius:3px;padding:0 6px;color:var(--muted)}
+.notice pre{margin:0;padding:12px 14px;border-top:1px solid var(--line);background:var(--soft);white-space:pre-wrap;font:13px/1.7 var(--font)}
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--panel);border-radius:6px;padding:24px;max-width:520px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.modal h3{margin-top:0}
+.modal-buttons{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+.storage-bar{height:4px;background:var(--line);border-radius:2px;margin-top:8px;overflow:hidden}
+.storage-bar-fill{height:100%;border-radius:2px;transition:width .3s}
+@media(max-width:760px){
+  .irr-hero{grid-template-columns:1fr}
+  .irr-hero .slope{display:none}
+  main{padding:20px 14px 80px}
+  :root{--frozen-w:160px}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>資本支出 IRR 效益追蹤</h1>
+  <nav id="nav"></nav>
+  <label class="clock" title="調整系統日期以模擬年度回報提醒">系統日期 <input type="date" id="today"></label>
+</header>
+<main id="app"></main>
+<div id="modal" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal">
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+    <div class="modal-buttons">
+      <button class="btn ghost" id="modal-cancel">取消</button>
+      <button class="btn" id="modal-ok">確定</button>
+    </div>
+  </div>
+</div>
+<script src="src/utils/esc.js"></script>
+<script src="src/utils/dom.js"></script>
+<script src="src/utils/format.js"></script>
+<script src="src/utils/dates.js"></script>
+<script src="src/core/constants.js"></script>
+<script src="src/core/state.js"></script>
+<script src="src/core/storage.js"></script>
+<script src="src/core/audit.js"></script>
+<script src="src/core/scheduler.js"></script>
+<script src="src/core/notifications.js"></script>
+<script src="src/engine/excel-parser.js"></script>
+<script src="src/engine/formula-engine.js"></script>
+<script src="src/engine/irr-engine.js"></script>
+<script src="src/engine/compute.js"></script>
+<script src="src/components/toast.js"></script>
+<script src="src/components/modal.js"></script>
+<script src="src/components/tracker-render.js"></script>
+<script src="src/components/tracker-bind.js"></script>
+<script src="src/components/tracker-actions.js"></script>
+<script src="src/views/overview.js"></script>
+<script src="src/views/project.js"></script>
+<script src="src/views/upload.js"></script>
+<script src="src/views/notices.js"></script>
+<script src="src/views/audit.js"></script>
+<script src="src/views/backup.js"></script>
+<script src="src/views/index.js"></script>
+<script src="src/core/router.js"></script>
+<script src="demo/seed.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
