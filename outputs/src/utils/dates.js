@@ -16,11 +16,13 @@
   }
 
   function parseDate(s) {
-    if (!s) return null;
-    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-    if (!m) return null;
-    return new Date(+m[1], +m[2] - 1, +m[3]);
-  }
+      if (!s) return null;
+      // 舊的：var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+      // ↓ 換成這個，讓 - 或 / 都可以通過解析：
+      var m = /^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/.exec(s);
+      if (!m) return null;
+      return new Date(+m[1], +m[2] - 1, +m[3]);
+    }
 
   function daysBetween(d1, d2) {
     var a = parseDate(d1);
