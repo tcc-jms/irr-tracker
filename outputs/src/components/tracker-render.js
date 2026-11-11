@@ -109,13 +109,25 @@
     var actualIrr = snapshot.irr;
     var diff = typeof actualIrr === 'number' && typeof baseIrr === 'number' ? actualIrr - baseIrr : null;
     var diffText = Format.percentagePoints ? Format.percentagePoints(diff) : '–';
-    return '<div class="irr-bar" id="irr-bar"><div class="irr-bar-inner">' +
-      '<div class="irr-fig plan"><span class="l">原提報 IRR</span><span class="v">' + (Format.fmtPercent ? Format.fmtPercent(baseIrr, 2) : '–') + '</span></div>' +
-      '<span class="irr-arrow">→</span><div class="irr-fig act"><span class="l">實際 IRR</span><span class="v">' + (hasReport && Format.fmtPercent ? Format.fmtPercent(actualIrr, 2) : '–') + '</span></div>' +
-      '<div class="irr-diff ' + (diff == null ? '' : diff >= 0 ? 'pos' : 'neg') + '">' + (hasReport ? diffText : '尚無實績') + '</div>' +
-      '<div>回收年限：' + (Format.formatNumber ? Format.formatNumber(baseline.payback, 1) : '–') + ' → ' + (hasReport && Format.formatNumber ? Format.formatNumber(snapshot.payback, 1) : '–') + ' 年</div>' +
-      '</div><div class="irr-save"><button class="save-btn" id="save-yr"' + (data.canSave ? '' : ' disabled') + '>儲存回報</button>' +
-      '<button class="save-btn" id="cancel-edit" type="button"' + (data.liveEdit ? '' : ' disabled') + '>取消</button></div></div>';
+    
+    // 修改這裡：改為圓角浮動面板樣式，僅顯示編輯後的動態結果與操作按鈕
+    return '<div class="irr-bar" id="irr-bar" style="max-width: 800px; margin: 0 auto; padding: 12px 24px; background: #1f2937; border-radius: 9999px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center;">' +
+      '<div class="irr-bar-inner" style="display: flex; align-items: center; gap: 24px; color: white;">' +
+        '<div class="irr-fig act" style="display: flex; flex-direction: column;">' +
+          '<span class="l" style="font-size: 12px; color: #9ca3af;">試算實際 IRR</span>' +
+          '<span class="v" style="font-size: 20px; font-weight: bold; color: #2dd4bf;">' + (hasReport && Format.fmtPercent ? Format.fmtPercent(actualIrr, 2) : '–') + '</span>' +
+        '</div>' +
+        '<div style="width: 1px; height: 32px; background-color: #374151;"></div>' +
+        '<div style="display: flex; flex-direction: column;">' +
+          '<span style="font-size: 12px; color: #9ca3af;">變動差異</span>' +
+          '<span class="irr-diff ' + (diff == null ? '' : diff >= 0 ? 'pos' : 'neg') + '" style="font-size: 14px; font-weight: 500;">' + (hasReport ? diffText : '尚無實績') + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="irr-save" style="display: flex; gap: 12px;">' +
+        '<button class="save-btn" id="cancel-edit" type="button" style="background: transparent; border: none; color: #d1d5db; cursor: pointer; padding: 8px 16px;"' + (data.liveEdit ? '' : ' disabled') + '>取消</button>' +
+        '<button class="save-btn" id="save-yr" style="background: #14b8a6; color: white; border: none; border-radius: 9999px; padding: 8px 24px; cursor: pointer;"' + (data.canSave ? '' : ' disabled') + '>儲存回報</button>' +
+      '</div>' +
+    '</div>';
   }
 
   window.AppTrackerRender = {

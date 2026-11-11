@@ -52,16 +52,23 @@
       '<h2>' + escape(project.name) + '</h2>' +
       '<p class="lead">' + [project.plant, project.code, project.owner ? '負責人 ' + project.owner : ''].filter(Boolean).map(escape).join('　') +
       (project.fileName ? ' · <span class="muted small">' + escape(project.fileName) + '</span>' : '') + '</p>' +
-      '<div class="panel irr-hero"><div class="fig plan"><div class="lab">原提報 IRR</div><div class="val">' + Format.fmtPercent(project.baseline && project.baseline.irr, 2) + '</div></div>' +
-      '<div class="slope"></div><div class="fig act"><div class="lab">' + (reportCount || liveEdit ? '實際 IRR' : '實際 IRR') + '</div><div class="val" id="project-actual-irr">' + (reportCount || liveEdit ? Format.fmtPercent(snapshot.irr, 2) : '–') + '</div></div>' +
+      
+// 將兩個 IRR 數據用一個 display: flex 的容器包覆，並加入間距與分隔線
+      '<div class="panel irr-hero">' + 
+        '<div style="display: flex; align-items: center; gap: 48px;">' + 
+          '<div class="fig plan"><div class="lab">原提報 IRR</div><div class="val">' + Format.fmtPercent(project.baseline && project.baseline.irr, 2) + '</div></div>' +
+          '<div style="width: 1px; height: 60px; background-color: #e5e7eb;"></div>' + // 取代原本的 slope，改為淺灰色的垂直分隔線
+          '<div class="fig act"><div class="lab">' + (reportCount || liveEdit ? '實際 IRR' : '實際 IRR') + '</div><div class="val" id="project-actual-irr">' + (reportCount || liveEdit ? Format.fmtPercent(snapshot.irr, 2) : '–') + '</div></div>' +
+        '</div>' +
       '<div class="delta small"><div>IRR 差異 <b id="project-irr-diff">' + (reportCount || liveEdit ? Format.percentagePoints(snapshot.irr - project.baseline.irr) : '尚無實績') + '</b></div>' +
       '<div>回收年限 <b>' + Format.formatNumber(project.baseline && project.baseline.payback, 1) + '</b> → <b id="project-payback">' + (reportCount || liveEdit ? Format.formatNumber(snapshot.payback, 1) : '–') + '</b> 年</div>' +
       '<div class="seg" id="mode-seg"><button type="button" data-mode="formula" class="' + (project.mode === 'formula' ? 'on' : '') + '">依公式延伸</button><button type="button" data-mode="original" class="' + (project.mode === 'original' ? 'on' : '') + '">維持提報值</button></div></div></div>' +
+
       (snapshot.error ? '<div class="err">計算錯誤：' + escape(snapshot.error) + '</div>' : '') +
       (snapshot.fallbacks && snapshot.fallbacks.length ? '<div class="note">有 ' + snapshot.fallbacks.length + ' 個公式使用備援值，結果可能不準確。</div>' : '') +
       '<div class="panel" style="padding:0;overflow:hidden"><div style="padding:14px 20px 10px;border-bottom:1px solid var(--line)"><h3 style="margin:0">效益追蹤總表</h3></div>' +
       (TrackerRender.buildTracker ? TrackerRender.buildTracker({ project: project, schedule: schedule, snapshot: snapshot, liveEdit: liveEdit }) : '') + '</div>' +
-      '<div id="irr-bar-container">' + (TrackerRender.buildIrrBar ? TrackerRender.buildIrrBar({ project: project, schedule: schedule, snapshot: snapshot, liveEdit: liveEdit, canSave: canSave }) : '') + '</div>' +
+      (liveEdit ? '<div id="irr-bar-container">' + (TrackerRender.buildIrrBar ? TrackerRender.buildIrrBar({ project: project, schedule: schedule, snapshot: snapshot, liveEdit: liveEdit, canSave: canSave }) : '') + '</div>' : '') +     
       '<div class="panel"><h3>專案設定</h3><div class="grid2">' +
       '<label class="f"><span>專案名稱</span><input type="text" id="s-name" value="' + escape(project.name) + '"></label>' +
       '<label class="f"><span>廠區</span><select id="s-plant">' + plantOptions + '</select></label>' +
